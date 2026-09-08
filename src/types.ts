@@ -46,10 +46,38 @@ export interface Shelter {
   contactPhone: string;
   coordinatorName: string;
   coordinatorPhone: string;
+  managerHomeAddress: string;
+  managerAadhaarVerified: boolean;
+  managerAadhaarMasked: string;
+  policePermissionVerified: boolean;
+  policeStation: string;
+  policeNocNumber: string;
+  policePermissionDocName?: string;
   lastUpdated: string;
   acceptingNewArrivals: boolean;
   notes?: string;
   verifiedByAuthority?: boolean;
+  isDemoMode?: boolean;
+}
+
+export interface NewShelterSubmission {
+  name: string;
+  address: string;
+  district: string;
+  lat: number;
+  lng: number;
+  capacity: number;
+  contactPhone: string;
+  managerName: string;
+  managerPhone: string;
+  managerHomeAddress: string;
+  aadhaarNumber?: string;
+  policeStation?: string;
+  policeNocNumber?: string;
+  policeDocName?: string;
+  isDemoMode?: boolean;
+  facilities: Partial<ShelterFacilities>;
+  resources: Partial<ShelterResources>;
 }
 
 export interface ResidentMember {

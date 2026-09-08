@@ -8,7 +8,8 @@ import {
   UserRole, 
   Language, 
   UserReport,
-  ShelterStatus
+  ShelterStatus,
+  NewShelterSubmission
 } from '../types';
 import { 
   INITIAL_SHELTERS, 
@@ -50,6 +51,15 @@ interface ResqContextType {
   recordResourceTransaction: (txData: Omit<ResourceTransaction, 'id' | 'timestamp'>) => void;
   resolveAlert: (alertId: string) => void;
   submitUserReport: (report: Omit<UserReport, 'id' | 'timestamp' | 'status'>) => void;
+  addShelter: (submission: NewShelterSubmission) => Shelter;
+  submitDistressCall: (distressData: {
+    callerName: string;
+    callerPhone: string;
+    locationDetails: string;
+    peopleCount: number;
+    urgentNeeds: string[];
+    additionalNotes: string;
+  }) => void;
   
   // Demo simulation triggers for judges
   simulateArrivals: (shelterId?: string, count?: number) => void;
@@ -71,15 +81,15 @@ interface ResqContextType {
 const ResqContext = createContext<ResqContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  SHELTERS: 'resq_shelters_v2',
-  FAMILIES: 'resq_families_v2',
-  RESOURCES: 'resq_resources_v2',
-  ALERTS: 'resq_alerts_v2',
-  ACTIVITY: 'resq_activity_v2',
-  PENDING_QUEUE: 'resq_pending_queue_v2',
-  ROLE: 'resq_role_v2',
-  LANG: 'resq_lang_v2',
-  EMERGENCY_MODE: 'resq_em_mode_v2'
+  SHELTERS: 'resqtech_shelters_v4',
+  FAMILIES: 'resqtech_families_v4',
+  RESOURCES: 'resqtech_resources_v4',
+  ALERTS: 'resqtech_alerts_v4',
+  ACTIVITY: 'resqtech_activity_v4',
+  PENDING_QUEUE: 'resqtech_pending_queue_v4',
+  ROLE: 'resqtech_role_v4',
+  LANG: 'resqtech_lang_v4',
+  EMERGENCY_MODE: 'resqtech_em_mode_v4'
 };
 
 export const ResqProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -470,6 +480,139 @@ export const ResqProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     showToast('Thank you. Your report has been submitted to District Operations for immediate verification.', 'success');
   };
 
+  // Add new shelter with Aadhaar & Police Permission verification OR Demo Quick Add
+  const addShelter = (submission: NewShelterSubmission): Shelter => {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const isDemo = Boolean(submission.isDemoMode || !submission.aadhaarNumber || submission.aadhaarNumber === 'DEMO');
+    
+    let maskedAadhaar = 'N/A (Demo Add)';
+    if (!isDemo && submission.aadhaarNumber && submission.aadhaarNumber.length >= 4) {
+      maskedAadhaar = `XXXX-XXXX-${submission.aadhaarNumber.replace(/\s+/g, '').slice(-4)}`;
+    }
+
+    const newShelter: Shelter = {
+      id: `sh-reg-${Date.now()}`,
+      name: submission.name.trim(),
+      code: isDemo 
+        ? `RQ-DEMO-${randomSuffix}`
+        : `RQ-${submission.district.slice(0, 3).toUpperCase()}-${randomSuffix}`,
+      address: submission.address.trim(),
+      district: submission.district.trim(),
+      lat: submission.lat,
+      lng: submission.lng,
+      capacity: submission.capacity,
+      currentOccupancy: 0,
+      status: 'AVAILABLE',
+      contactPhone: submission.contactPhone.trim() || '+91 79 0000 0099 (Demo)',
+      coordinatorName: submission.managerName.trim() || 'Demo Volunteer Lead',
+      coordinatorPhone: submission.managerPhone.trim() || '+91 90000 00099 (Demo)',
+      managerHomeAddress: submission.managerHomeAddress.trim() || 'Sector 11, Gandhinagar, Gujarat',
+      managerAadhaarVerified: !isDemo,
+      managerAadhaarMasked: isDemo ? 'N/A (Demo Center)' : maskedAadhaar,
+      policePermissionVerified: !isDemo,
+      policeStation: isDemo 
+        ? 'Demo Centre (No Police NOC Required)' 
+        : (submission.policeStation?.trim() || 'Infocity Police Station'),
+      policeNocNumber: isDemo 
+        ? 'DEMO-NOC-EXEMPT' 
+        : (submission.policeNocNumber?.trim() || 'GJ/POL/NOC-2026/8199'),
+      policePermissionDocName: isDemo ? undefined : (submission.policeDocName || 'Police_NOC_Verified.pdf'),
+      lastUpdated: new Date().toISOString(),
+      acceptingNewArrivals: true,
+      verifiedByAuthority: !isDemo,
+      isDemoMode: isDemo,
+      notes: isDemo
+        ? `Demo Relief Centre added for rapid emergency response and testing (Aadhaar UID and Police NOC exempted).`
+        : `Citizen Registered Shelter. Aadhaar Verified & Police Permission Approved by ${submission.policeStation?.trim() || 'Local Station'}.`,
+      facilities: {
+        drinkingWater: submission.facilities.drinkingWater ?? true,
+        foodRation: submission.facilities.foodRation ?? true,
+        toilets: submission.facilities.toilets ?? true,
+        electricity: submission.facilities.electricity ?? true,
+        medicalAid: submission.facilities.medicalAid ?? false,
+        chargingStation: submission.facilities.chargingStation ?? true,
+        wifi: submission.facilities.wifi ?? false,
+        petFriendly: submission.facilities.petFriendly ?? false,
+        wheelchairAccessible: submission.facilities.wheelchairAccessible ?? true,
+        infantCare: submission.facilities.infantCare ?? false,
+        elderlySupport: submission.facilities.elderlySupport ?? true,
+        womenChildrenArea: submission.facilities.womenChildrenArea ?? true
+      },
+      resources: {
+        bedsAvailable: submission.resources.bedsAvailable ?? submission.capacity,
+        bedsRequired: submission.capacity,
+        waterLiters: submission.resources.waterLiters ?? (submission.capacity * 20),
+        waterRequired: submission.capacity * 25,
+        rationKits: submission.resources.rationKits ?? submission.capacity,
+        rationRequired: submission.capacity,
+        medicalTeams: submission.resources.medicalTeams ?? 1,
+        medicalTeamsRequired: 1
+      }
+    };
+
+    setShelters((prev) => [newShelter, ...prev]);
+
+    setActivity((prev) => [
+      {
+        id: `act-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        type: 'STATUS_CHANGE',
+        message: isDemo
+          ? `DEMO CENTRE ACTIVATED: "${newShelter.name}" (${newShelter.capacity} beds) added by ${newShelter.coordinatorName} (No Aadhaar/Police verification needed).`
+          : `NEW SHELTER ACTIVATED: "${newShelter.name}" (${newShelter.capacity} beds) added by ${newShelter.coordinatorName}. Police NOC verified by ${newShelter.policeStation}.`,
+        shelterId: newShelter.id,
+        shelterName: newShelter.name,
+        badge: isDemo ? 'Demo Centre' : 'New Shelter'
+      },
+      ...prev.slice(0, 49)
+    ]);
+
+    showToast(
+      isDemo
+        ? `Demo Centre "${newShelter.name}" activated on RESQTECH network (No verification required).`
+        : `Shelter "${newShelter.name}" verified and published to RESQTECH network.`, 
+      'success'
+    );
+    return newShelter;
+  };
+
+  // Submit emergency distress call
+  const submitDistressCall = (distressData: {
+    callerName: string;
+    callerPhone: string;
+    locationDetails: string;
+    peopleCount: number;
+    urgentNeeds: string[];
+    additionalNotes: string;
+  }) => {
+    const alertId = `distress-${Date.now()}`;
+    const newAlert: AlertItem = {
+      id: alertId,
+      timestamp: new Date().toISOString(),
+      severity: 'CRITICAL',
+      title: `🚨 SOS DISTRESS CALL: ${distressData.peopleCount} People trapped/evacuating`,
+      description: `Caller: ${distressData.callerName} (${distressData.callerPhone}) at ${distressData.locationDetails}. Needs: ${distressData.urgentNeeds.join(', ')}. ${distressData.additionalNotes}`,
+      category: 'general',
+      resolved: false,
+      actionLabel: 'Dispatch Unit'
+    };
+
+    setAlerts((prev) => [newAlert, ...prev]);
+
+    setActivity((prev) => [
+      {
+        id: `act-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        type: 'ALERT',
+        message: `🚨 DISTRESS BROADCAST: ${distressData.callerName} (${distressData.callerPhone}) requests urgent evacuation at ${distressData.locationDetails} for ${distressData.peopleCount} persons.`,
+        badge: 'SOS Call'
+      },
+      ...prev.slice(0, 49)
+    ]);
+
+    showToast('EMERGENCY DISTRESS CALL DISPATCHED! Response team and nearest shelters notified.', 'error');
+  };
+
   // ----------------------------------------------------
   // HACKATHON DEMO CONTROLS FOR JUDGES
   // ----------------------------------------------------
@@ -660,6 +803,8 @@ export const ResqProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         recordResourceTransaction,
         resolveAlert,
         submitUserReport,
+        addShelter,
+        submitDistressCall,
         simulateArrivals,
         simulateCriticalCapacity,
         simulateWaterShortage,

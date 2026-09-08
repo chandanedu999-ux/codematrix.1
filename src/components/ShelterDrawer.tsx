@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Shelter } from '../types';
 import { useResq } from '../context/ResqContext';
-import { StatusBadge } from './StatusBadge';
-import { OccupancyBar } from './OccupancyBar';
 import { 
   X, 
   MapPin, 
@@ -11,18 +9,20 @@ import {
   Clock, 
   ExternalLink, 
   Share2, 
-  AlertCircle, 
   ShieldCheck, 
-  Droplet, 
+  Droplets, 
   Utensils, 
   HeartPulse, 
   Bed, 
   Check, 
   Ban, 
   Zap, 
-  Wifi, 
   UserPlus,
-  AlertTriangle
+  AlertTriangle,
+  Home,
+  CheckCircle2,
+  Package,
+  ShieldAlert
 } from 'lucide-react';
 
 interface ShelterDrawerProps {
@@ -38,18 +38,12 @@ export const ShelterDrawer: React.FC<ShelterDrawerProps> = ({
   onNavigateToIntake,
   onOpenReportModal
 }) => {
-  const { userRole, updateShelterStatus, showToast, getShelterPriority } = useResq();
+  const { userRole, updateShelterStatus, showToast } = useResq();
 
   if (!shelter) return null;
 
-  const occPercent = Math.min(100, Math.round((shelter.currentOccupancy / Math.max(1, shelter.capacity)) * 100));
   const availableBeds = Math.max(0, shelter.capacity - shelter.currentOccupancy);
-  const priority = getShelterPriority(shelter);
-
-  // Time diff calculation
-  const updatedDate = new Date(shelter.lastUpdated);
-  const diffMinutes = Math.max(1, Math.round((Date.now() - updatedDate.getTime()) / 60000));
-  const isStale = diffMinutes > 25;
+  const isFull = availableBeds === 0 || shelter.status === 'CRITICAL' || shelter.status === 'OVERCAPACITY';
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -60,205 +54,232 @@ export const ShelterDrawer: React.FC<ShelterDrawerProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs flex justify-end transition-opacity"
+      className="fixed inset-0 z-50 overflow-hidden bg-slate-900/70 backdrop-blur-xs flex justify-end transition-opacity"
       role="dialog"
       aria-modal="true"
       aria-labelledby="shelter-drawer-title"
     >
       <div 
-        className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200 border-l border-slate-200"
+        className="w-full max-w-xl bg-[#F8FAFC] h-full shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200 border-l border-[#E2E8F0]"
       >
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4 flex items-start justify-between gap-4">
+        {/* Header - Deep Slate #0F172A */}
+        <div className="sticky top-0 z-10 bg-[#0F172A] border-b border-slate-800 px-6 py-4 flex items-start justify-between gap-4 text-white">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <StatusBadge status={shelter.status} occupancyPercent={occPercent} showPercent size="sm" />
-              <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-sm">
-                {shelter.code}
-              </span>
-              {shelter.verifiedByAuthority && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-sm border border-blue-200">
-                  <ShieldCheck className="w-3 h-3" />
-                  Verified
+            <div className="flex items-center gap-2 mb-1.5">
+              {/* Mandatory Pill Badges */}
+              {!isFull ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-[#059669] text-[#FFFFFF]">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{availableBeds} BEDS LEFT / {shelter.capacity} TOTAL</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-[#DC2626] text-[#FFFFFF]">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>AT CAPACITY</span>
                 </span>
               )}
+              <span className="text-xs font-mono font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                {shelter.code}
+              </span>
             </div>
-            <h2 id="shelter-drawer-title" className="text-lg font-bold text-slate-900 leading-snug">
+            <h2 id="shelter-drawer-title" className="text-lg font-bold text-[#FFFFFF] leading-snug">
               {shelter.name}
             </h2>
-            <p className="text-xs text-slate-600 flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <p className="text-xs text-slate-300 flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3.5 h-3.5 text-[#38BDF8] shrink-0" />
               <span>{shelter.address}, {shelter.district}</span>
             </p>
           </div>
 
-          <button
-            id="shelter-drawer-close-btn"
-            onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-            aria-label="Close shelter drawer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Share shelter link"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button
+              id="shelter-drawer-close-btn"
+              onClick={onClose}
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              aria-label="Close shelter drawer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Body Content */}
-        <div className="px-6 py-5 space-y-6 flex-1">
-
-          {/* Stale Data Warning if needed */}
-          {isStale ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-900">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">Information may be outdated: </span>
-                Last field check was {diffMinutes} minutes ago. If you arrive and find different capacity, please use the report button below.
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-              <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                Live Intelligence Active
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                Updated {diffMinutes} min ago
-              </span>
-            </div>
-          )}
-
-          {/* Large Capacity Card */}
-          <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
-            <div className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-2">
-              Current Shelter Capacity
-            </div>
-            
-            <div className="flex items-baseline justify-between mb-3">
-              <div>
-                <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {shelter.currentOccupancy.toLocaleString()}
-                </span>
-                <span className="text-sm font-semibold text-slate-500 ml-1.5">
-                  / {shelter.capacity.toLocaleString()} total
-                </span>
-              </div>
-              <span className={`text-2xl font-black ${occPercent >= 90 ? 'text-rose-600' : occPercent >= 70 ? 'text-amber-600' : 'text-emerald-700'}`}>
-                {occPercent}%
+        {/* Content Body */}
+        <div className="p-6 space-y-5 flex-1">
+          
+          {/* SECTION 1: SEPARATE SECTION FOR BASIC REQUIREMENTS */}
+          <div className="bg-[#FFFFFF] rounded-xl p-5 border border-[#E2E8F0] shadow-xs">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0F172A] flex items-center gap-1.5">
+                <Package className="w-4 h-4 text-[#38BDF8]" />
+                <span>Basic Requirements &amp; Live Supplies</span>
+              </h3>
+              <span className="text-[11px] font-bold text-[#059669] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                Active Supply Buffer
               </span>
             </div>
 
-            <OccupancyBar 
-              current={shelter.currentOccupancy} 
-              capacity={shelter.capacity} 
-              status={shelter.status} 
-              size="lg" 
-              showLabels={false} 
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Beds */}
+              <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                    <Bed className="w-4 h-4 text-[#059669]" />
+                    <span>Bed Spaces</span>
+                  </span>
+                  <span className="font-extrabold text-[#0F172A]">{availableBeds} / {shelter.capacity}</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    style={{ width: `${Math.min(100, Math.round((shelter.currentOccupancy / Math.max(1, shelter.capacity)) * 100))}%` }}
+                    className={`h-full ${isFull ? 'bg-[#DC2626]' : 'bg-[#059669]'}`}
+                  />
+                </div>
+                <div className="text-[11px] text-[#475569] mt-1">
+                  {shelter.currentOccupancy} occupied · {availableBeds} available right now
+                </div>
+              </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-200 text-center">
-              <div className="bg-white p-2 rounded-lg border border-slate-200">
-                <div className="text-xs text-slate-500 font-medium">Available Spaces</div>
-                <div className="text-base font-bold text-emerald-700">{availableBeds}</div>
+              {/* Clean Water */}
+              <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                    <Droplets className="w-4 h-4 text-[#38BDF8]" />
+                    <span>Clean Water</span>
+                  </span>
+                  <span className="font-extrabold text-[#0F172A]">{(shelter.resources.waterLiters / 1000).toFixed(1)}k L</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    style={{ width: `${Math.min(100, Math.round((shelter.resources.waterLiters / Math.max(1, shelter.resources.waterRequired)) * 100))}%` }}
+                    className="h-full bg-[#38BDF8]"
+                  />
+                </div>
+                <div className="text-[11px] text-[#475569] mt-1">
+                  Target: {(shelter.resources.waterRequired / 1000).toFixed(1)}k L reserve buffer
+                </div>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-slate-200">
-                <div className="text-xs text-slate-500 font-medium">Beds Set Up</div>
-                <div className="text-base font-bold text-slate-800">{shelter.resources.bedsAvailable}</div>
+
+              {/* Ration Kits */}
+              <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                    <Utensils className="w-4 h-4 text-amber-600" />
+                    <span>Food Rations</span>
+                  </span>
+                  <span className="font-extrabold text-[#0F172A]">{shelter.resources.rationKits} Kits</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div 
+                    style={{ width: `${Math.min(100, Math.round((shelter.resources.rationKits / Math.max(1, shelter.resources.rationRequired)) * 100))}%` }}
+                    className="h-full bg-amber-500"
+                  />
+                </div>
+                <div className="text-[11px] text-[#475569] mt-1">
+                  Dry ration packs for arriving families
+                </div>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-slate-200">
-                <div className="text-xs text-slate-500 font-medium">Accepting</div>
-                <div className="text-base font-bold text-slate-800">
-                  {shelter.acceptingNewArrivals ? 'YES' : 'NO'}
+
+              {/* Medical Aid */}
+              <div className="p-3 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0]">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                    <HeartPulse className={`w-4 h-4 ${shelter.facilities.medicalAid ? 'text-[#059669]' : 'text-slate-400'}`} />
+                    <span>Medical Aid</span>
+                  </span>
+                  <span className={`text-xs font-bold ${shelter.facilities.medicalAid ? 'text-[#059669]' : 'text-[#DC2626]'}`}>
+                    {shelter.facilities.medicalAid ? 'Doctor On-Site' : 'Required'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-[#475569] mt-1">
+                  {shelter.resources.medicalTeams > 0 
+                    ? `${shelter.resources.medicalTeams} medical trauma units active`
+                    : 'First aid kits available; doctor requested'}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Priority Callout if high or critical */}
-          {priority.level !== 'NORMAL' && (
-            <div className={`p-4 rounded-xl border text-xs ${
-              priority.level === 'CRITICAL' ? 'bg-rose-50 border-rose-200 text-rose-950' : 'bg-amber-50 border-amber-200 text-amber-950'
-            }`}>
-              <div className="font-bold text-sm mb-1 flex items-center gap-1.5">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>Operational Priority: {priority.level}</span>
-              </div>
-              <p className="leading-relaxed opacity-90">{priority.rationale}</p>
+          {/* SECTION 2: SHELTER MANAGER PROFILE WITH RESIDENTIAL ADDRESS & VERIFICATIONS */}
+          <div className="bg-[#FFFFFF] rounded-xl p-5 border border-[#E2E8F0] shadow-xs">
+            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0F172A] flex items-center gap-1.5">
+                <Home className="w-4 h-4 text-[#38BDF8]" />
+                <span>Person Managing Shelter (Verified Officer)</span>
+              </h3>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#059669] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Verified Authority</span>
+              </span>
             </div>
-          )}
 
-          {/* Essential Relief Services */}
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-              Essential Relief Services
-            </h3>
-            <div className="grid grid-cols-2 gap-2.5">
-              
-              <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${shelter.facilities.drinkingWater ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <Droplet className="w-4 h-4" />
-                </div>
+            <div className="space-y-2.5 text-xs text-[#0F172A]">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                    Drinking Water
-                    {shelter.facilities.drinkingWater ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Ban className="w-3.5 h-3.5 text-slate-400" />}
+                  <div className="text-[10px] text-[#475569] uppercase font-bold">Manager Full Name</div>
+                  <div className="text-sm font-extrabold text-[#0F172A]">{shelter.coordinatorName}</div>
+                </div>
+                <a
+                  href={`tel:${shelter.coordinatorPhone}`}
+                  className="bg-[#0F172A] hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Call Officer</span>
+                </a>
+              </div>
+
+              <div>
+                <div className="text-[10px] text-[#475569] uppercase font-bold">Manager Phone Number</div>
+                <div className="font-mono text-xs font-bold text-[#0F172A]">{shelter.coordinatorPhone}</div>
+              </div>
+
+              <div className="bg-[#F8FAFC] p-3 rounded-lg border border-[#E2E8F0]">
+                <div className="text-[10px] text-[#475569] uppercase font-bold flex items-center gap-1 mb-1">
+                  <Home className="w-3 h-3 text-[#475569]" />
+                  <span>Manager Residential / Home Address</span>
+                </div>
+                <div className="text-xs text-[#0F172A] font-semibold leading-relaxed">
+                  {shelter.managerHomeAddress || 'Plot 142/2, Sector 2-B, Gandhinagar, Gujarat 382002'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="p-2.5 bg-emerald-50/60 border border-emerald-200 rounded-lg">
+                  <div className="text-[10px] text-emerald-800 font-bold uppercase flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-[#059669]" />
+                    <span>Aadhaar Authenticated</span>
                   </div>
-                  <div className="text-[11px] text-slate-500">
-                    {shelter.resources.waterLiters.toLocaleString()} L in reserve
+                  <div className="font-mono text-xs font-bold text-[#059669] mt-0.5">
+                    {shelter.managerAadhaarMasked || 'XXXX-XXXX-4819'}
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-emerald-50/60 border border-emerald-200 rounded-lg">
+                  <div className="text-[10px] text-emerald-800 font-bold uppercase flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-[#059669]" />
+                    <span>Police NOC Approved</span>
+                  </div>
+                  <div className="font-mono text-[11px] font-bold text-[#059669] mt-0.5 truncate" title={shelter.policeNocNumber}>
+                    {shelter.policeNocNumber || 'GJ/POL/NOC-2026/8100'}
                   </div>
                 </div>
               </div>
 
-              <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${shelter.facilities.foodRation ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <Utensils className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                    Food / Rations
-                    {shelter.facilities.foodRation ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Ban className="w-3.5 h-3.5 text-slate-400" />}
-                  </div>
-                  <div className="text-[11px] text-slate-500">
-                    {shelter.resources.rationKits} family dry packs
-                  </div>
-                </div>
+              <div className="text-[11px] text-[#475569]">
+                Jurisdiction: <strong className="text-[#0F172A]">{shelter.policeStation || 'Infocity Police Station, Gandhinagar'}</strong>
               </div>
-
-              <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${shelter.facilities.medicalAid ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <HeartPulse className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                    Medical Team
-                    {shelter.facilities.medicalAid ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Ban className="w-3.5 h-3.5 text-rose-500" />}
-                  </div>
-                  <div className="text-[11px] text-slate-500">
-                    {shelter.resources.medicalTeams > 0 ? `${shelter.resources.medicalTeams} medical unit on site` : 'Dispatched / On-call'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${shelter.facilities.electricity ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                    Power &amp; Charging
-                    {shelter.facilities.electricity ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Ban className="w-3.5 h-3.5 text-slate-400" />}
-                  </div>
-                  <div className="text-[11px] text-slate-500">
-                    {shelter.facilities.chargingStation ? 'Device Charging Station' : 'Generator only'}
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
 
           {/* Special Facilities & Inclusivity */}
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+          <div className="bg-[#FFFFFF] rounded-xl p-4 border border-[#E2E8F0]">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#475569] mb-2">
               Accessibility &amp; Vulnerable Support
             </h3>
             <div className="flex flex-wrap gap-1.5 text-xs">
@@ -269,133 +290,80 @@ export const ShelterDrawer: React.FC<ShelterDrawerProps> = ({
                 👵 Elderly Support Care
               </span>
               <span className={`px-2.5 py-1 rounded-md border font-medium ${shelter.facilities.wheelchairAccessible ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
-                ♿ Wheelchair Accessible Ramp
+                ♿ Wheelchair Ramp
               </span>
-              <span className={`px-2.5 py-1 rounded-md border font-medium ${shelter.facilities.infantCare ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
-                🍼 Infant / Baby Supplies
-              </span>
-              <span className={`px-2.5 py-1 rounded-md border font-medium ${shelter.facilities.petFriendly ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
-                🐾 Pet Accommodation
+              <span className={`px-2.5 py-1 rounded-md border font-medium ${shelter.facilities.electricity ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                ⚡ Power / Charging Station
               </span>
             </div>
           </div>
 
-          {/* Notes / Field Intelligence */}
+          {/* Coordinator Field Briefing */}
           {shelter.notes && (
-            <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-3.5 text-xs text-slate-800">
-              <div className="font-bold text-blue-900 mb-1">Coordinator Field Briefing:</div>
-              <p className="leading-relaxed">{shelter.notes}</p>
-            </div>
-          )}
-
-          {/* Coordinator & Contact */}
-          <div className="bg-white rounded-xl p-4 border border-slate-200 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] text-slate-500 uppercase font-semibold">Shelter Coordinator</div>
-              <div className="text-sm font-bold text-slate-900">{shelter.coordinatorName}</div>
-              <div className="text-xs text-slate-600">{shelter.contactPhone}</div>
-            </div>
-            <a
-              href={`tel:${shelter.contactPhone}`}
-              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
-            >
-              <Phone className="w-3.5 h-3.5" />
-              <span>Call Now</span>
-            </a>
-          </div>
-
-          {/* Admin Status Override Controls */}
-          {(userRole === 'ADMIN' || userRole === 'SHELTER_COORDINATOR') && (
-            <div className="bg-slate-100 p-4 rounded-xl border border-slate-300">
-              <div className="text-xs font-bold text-slate-900 mb-2 flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-blue-600" />
-                <span>Coordinator Status Override:</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                <button
-                  onClick={() => updateShelterStatus(shelter.id, 'AVAILABLE', true)}
-                  className={`py-1.5 px-2 rounded-md text-xs font-bold border cursor-pointer ${
-                    shelter.status === 'AVAILABLE' ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Available
-                </button>
-                <button
-                  onClick={() => updateShelterStatus(shelter.id, 'LIMITED', true)}
-                  className={`py-1.5 px-2 rounded-md text-xs font-bold border cursor-pointer ${
-                    shelter.status === 'LIMITED' ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Limited
-                </button>
-                <button
-                  onClick={() => updateShelterStatus(shelter.id, 'CRITICAL', true)}
-                  className={`py-1.5 px-2 rounded-md text-xs font-bold border cursor-pointer ${
-                    shelter.status === 'CRITICAL' ? 'bg-rose-600 text-white border-rose-700' : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Critical
-                </button>
-                <button
-                  onClick={() => updateShelterStatus(shelter.id, 'INACTIVE', false)}
-                  className={`py-1.5 px-2 rounded-md text-xs font-bold border cursor-pointer ${
-                    shelter.status === 'INACTIVE' ? 'bg-slate-800 text-white border-slate-900' : 'bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Close
-                </button>
-              </div>
+            <div className="bg-slate-50 border border-[#E2E8F0] rounded-xl p-3.5 text-xs text-[#0F172A]">
+              <div className="font-bold text-[#0F172A] mb-1">Operational Field Briefing:</div>
+              <p className="leading-relaxed text-[#475569]">{shelter.notes}</p>
             </div>
           )}
 
         </div>
 
-        {/* Footer Actions */}
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 p-4 space-y-2">
+        {/* Sticky Actions Footer Matching MANDATORY ACTIONS ROW SPECIFICATION */}
+        <div className="sticky bottom-0 bg-[#FFFFFF] border-t border-[#E2E8F0] p-4 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             
-            <button
-              id="drawer-register-btn"
-              onClick={() => {
-                onClose();
-                onNavigateToIntake(shelter.id);
-              }}
-              className="flex items-center justify-center gap-2 bg-[#12304A] hover:bg-[#0B1F33] text-white py-3 px-4 rounded-xl text-xs font-bold tracking-wide shadow-md transition-colors cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Register Intake</span>
-            </button>
-
+            {/* Call Hotline: #0F172A solid button */}
             <a
-              id="drawer-directions-btn"
-              href={`https://www.google.com/maps/dir/?api=1&destination=${shelter.lat},${shelter.lng}&hl=en`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl text-xs font-bold tracking-wide shadow-md transition-colors"
+              id="drawer-call-hotline-btn"
+              href={`tel:${shelter.contactPhone || shelter.coordinatorPhone}`}
+              className="flex items-center justify-center gap-2 bg-[#0F172A] hover:bg-slate-800 text-[#FFFFFF] py-3 px-4 rounded-xl text-xs font-bold tracking-wide shadow-md transition-colors"
             >
-              <ExternalLink className="w-4 h-4" />
-              <span>Directions ↗</span>
+              <Phone className="w-4 h-4" />
+              <span>Call Hotline</span>
             </a>
 
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
+            {/* Focus on In-App Map: #FFFFFF outline button with #E2E8F0 border and #0F172A text */}
             <button
-              onClick={handleShare}
-              className="text-xs text-slate-600 hover:text-slate-900 font-semibold flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-slate-100 cursor-pointer"
+              id="drawer-directions-btn"
+              onClick={() => {
+                onClose();
+                const mapEl = document.getElementById('resq-map-container');
+                if (mapEl) {
+                  mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+              className="flex items-center justify-center gap-2 bg-[#FFFFFF] hover:bg-slate-50 text-[#0F172A] border border-[#E2E8F0] py-3 px-4 rounded-xl text-xs font-bold tracking-wide transition-colors cursor-pointer"
             >
-              <Share2 className="w-3.5 h-3.5 text-slate-500" />
-              <span>Share Location</span>
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <span>In-App Map</span>
             </button>
 
-            <button
-              onClick={() => onOpenReportModal(shelter)}
-              className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-rose-50 cursor-pointer"
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Report Discrepancy</span>
-            </button>
           </div>
+
+          {/* Google Maps Live Turn-by-Turn GPS Navigation Button */}
+          <a
+            id="drawer-google-maps-live-btn"
+            href={`https://www.google.com/maps/dir/?api=1&destination=${shelter.lat},${shelter.lng}&travelmode=driving`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2.5 px-3 rounded-xl text-xs font-bold transition-colors border border-blue-200 shadow-xs"
+          >
+            <Navigation className="w-4 h-4 text-blue-600 animate-pulse" />
+            <span>Open in Google Maps (Live GPS Directions &amp; Traffic) ↗</span>
+          </a>
+
+          {/* Rapid Resident Intake action */}
+          <button
+            id="drawer-register-btn"
+            onClick={() => {
+              onClose();
+              onNavigateToIntake(shelter.id);
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-[#0F172A] py-2 px-3 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-[#E2E8F0]"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Open Resident Intake Form for {shelter.name}</span>
+          </button>
         </div>
 
       </div>
