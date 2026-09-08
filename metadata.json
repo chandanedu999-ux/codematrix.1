@@ -1,0 +1,10 @@
+{
+  "name": "RESQ — Disaster Shelter Management & Coordination Platform",
+  "description": "Real-time shelter intelligence, capacity coordination, rapid resident intake, and relief logistics for disaster operations and citizens.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
