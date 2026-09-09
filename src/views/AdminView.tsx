@@ -227,7 +227,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onSelectShelter }) => {
               Citizen Discrepancy &amp; Field Reports ({userReports.length})
             </h2>
             <p className="text-xs text-slate-500">
-              Crowdsourced evacuation reports flagged by citizens on the public map.
+              Crowdsourced evacuation reports flagged by citizens in the field.
             </p>
 
             {userReports.length === 0 ? (

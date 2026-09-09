@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const unresolvedAlertsCount = alerts.filter((a) => !a.resolved).length;
 
   const navItems = [
-    { id: 'public', label: 'Shelters Map', icon: MapPin, roleRequired: 'PUBLIC' },
+    { id: 'public', label: 'Rescue Centres Map', icon: MapPin, roleRequired: 'PUBLIC' },
     { id: 'dashboard', label: 'Command Center', icon: Activity, roleRequired: 'VOLUNTEER' },
     { id: 'intake', label: 'Fast Intake', icon: UserPlus, roleRequired: 'SHELTER_COORDINATOR' },
     { id: 'resources', label: 'Resources', icon: Package, roleRequired: 'VOLUNTEER' },
